@@ -1,8 +1,6 @@
 BlockServer
 ===========
-####MASTER Branch: [![Build Status](https://travis-ci.org/BlockServerProject/BlockServer.svg?branch=master)](https://travis-ci.org/BlockServerProject/BlockServer)
-
-####LEVEL REWRITE Branch: [![Build Status](https://travis-ci.org/BlockServerProject/BlockServer.svg?branch=level-rewrite)](https://travis-ci.org/BlockServerProject/BlockServer)
+####"New" Branch: [![Build Status](https://travis-ci.org/BlockServerProject/BlockServer.svg?branch=new)](https://travis-ci.org/BlockServerProject/BlockServer)
 
 [![Visit our IRC channel](https://kiwiirc.com/buttons/irc.freenode.net/blockserverproject.png)](https://kiwiirc.com/client/irc.freenode.net/?nick=beaconpe|?#blockserverproject,#beaconpe,#pocketbukkit)
 
