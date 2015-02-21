@@ -1,6 +1,7 @@
 package org.blockserver.player;
 
 import org.blockserver.Server;
+import org.blockserver.net.internal.request.DisconnectRequest;
 import org.blockserver.net.internal.request.InternalRequest;
 import org.blockserver.net.internal.request.PingRequest;
 import org.blockserver.net.internal.response.InternalResponse;
@@ -9,6 +10,8 @@ import org.blockserver.net.protocol.ProtocolSession;
 import org.blockserver.net.protocol.pe.PeProtocol;
 import org.blockserver.net.protocol.pe.PeProtocolSession;
 import org.blockserver.utils.Position;
+
+import java.util.Dictionary;
 
 public class Player{
 	private Server server;
@@ -31,11 +34,7 @@ public class Player{
 		// TODO read the data
 	}
 	private void sendResponse(InternalResponse response){
-		if(protocol instanceof PeProtocolSession){
-			((PeProtocolSession) protocol).addResponseToQueue(response);
-		} else {
-			getServer().getLogger().warning("Could not send response.");
-		}
+		protocol.sendResponse(response);
 		//TODO: More
 	}
 	public void handleRequest(InternalRequest request){
@@ -43,6 +42,11 @@ public class Player{
 			PingResponse pingResponse = new PingResponse();
 			pingResponse.pingId = ((PingRequest) request).pingId;
 			sendResponse(pingResponse);
+		} else if(request instanceof DisconnectRequest){
+			DisconnectRequest disconnectRequest = (DisconnectRequest) request;
+			getServer().getLogger().info(login.username + "(EID: "+entityID+") ["+getProtocolSession().getAddress().toString()+"] logged out due to: "+disconnectRequest.reason);
+			protocol.closeSession("");
+			server.getProtocols().closeSession(getProtocolSession().getAddress());
 		}
 	}
 	public ProtocolSession getProtocolSession(){

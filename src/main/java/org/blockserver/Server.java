@@ -1,12 +1,21 @@
 package org.blockserver;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 
+import org.blockserver.api.API;
+import org.blockserver.api.impl.DummyAPI;
 import org.blockserver.cmd.CommandManager;
+import org.blockserver.level.LevelManager;
+import org.blockserver.level.LevelSaveException;
+import org.blockserver.level.impl.dummy.DummyLevel;
+import org.blockserver.level.impl.levelDB.DBLevel;
+import org.blockserver.module.ModuleLoadException;
+import org.blockserver.module.ModuleLoader;
 import org.blockserver.net.bridge.NetworkBridgeManager;
 import org.blockserver.net.bridge.UDPBridge;
 import org.blockserver.net.protocol.ProtocolManager;
@@ -38,13 +47,17 @@ public class Server{
 	private CommandManager cmdMgr;
 	private ConsoleListener consoleListener;
 	private int currentEntityID = 1; // TODO migrate this to somewhere more proper
+	@Deprecated
 	private Position spawnPosition = new Position(0, 64, 0); // TODO DUMMY
+	private LevelManager lvlManager;
+	private API api = new DummyAPI();
+	private File modulesLocation;
 
 	public String getServerName(){
 		return serverName;
 	}
 	public Position getSpawnPosition() {
-		return spawnPosition;
+		return lvlManager.getLevelImplemenation().getSpawnPosition();
 	}
 	public ServerTicker getTicker(){
 		return ticker;
@@ -108,10 +121,11 @@ public class Server{
 	 * @param out the console output, a.k.a. the logger, of the server
 	 * @param playerDb the database to use for players
 	 */
-	Server(InetAddress address, int port, String serverName, ConsoleOut out, PlayerDatabase playerDb){
+	Server(InetAddress address, int port, String serverName, ConsoleOut out, PlayerDatabase playerDb, File modulePath){
 		Thread.currentThread().setName("BlockServerPE");
 		this.address = address;
 		this.port = port;
+		this.modulesLocation = modulePath;
 		this.serverName = serverName;
 		logger = new Logger(out);
 		ticker = new ServerTicker(this, 50);
@@ -121,14 +135,33 @@ public class Server{
 		cmdMgr = new CommandManager(this);
 		consoleListener = new ConsoleListener(this, InputStreamConsoleIn.fromConsole());
 		registerModules();
+		loadLevel();
 	}
 	private void registerModules(){
-		logger.info("Registering modules...");
-		PeProtocol pocket = new PeProtocol(this);
-		protocols.addProtocol(pocket);
-		bridges.addBridge(new UDPBridge(bridges));
-		pocket.getSubprotocols().registerSubprotocol(new PeSubprotocolV20(this));
-		logger.info("Modules registered!");
+		ModuleLoader loader = new ModuleLoader(this, modulesLocation);
+		try {
+			loader.run();
+		} catch(ModuleLoadException e){
+			logger.error("Failed to load modules: ModuleLoadException.");
+			logger.trace("ModuleLoadException: "+e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	private void loadLevel(){
+		//TODO: Implement LevelDB worlds
+		lvlManager = new LevelManager(this);
+		//lvlManager.setLevelImpl(new DummyLevel(new Position(0, 64, 0)));
+		lvlManager.setLevelImpl(new DBLevel(new File("world"), this, new Position(0, 64, 0)));
+		addShutdownFunction(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					lvlManager.getLevelImplemenation().saveLevel();
+				} catch (LevelSaveException e) {
+					e.printStackTrace();
+				}
+			}
+		});
 	}
 	/**
 	 * Start the server operation. This method blocks until the server is stopped.
@@ -148,6 +181,14 @@ public class Server{
 		}
 	}
 
+	public void setAPI(API api){
+		this.api = api;
+	}
+
+	public API getAPI(){
+		return this.api;
+	}
+
 	public Player newSession(ProtocolSession session){
 		Player player = new Player(session, new PlayerLoginInfo());
 		players.put(session.getAddress(), player);
@@ -157,6 +198,10 @@ public class Server{
 		Player player = new Player(session, info);
 		players.put(session.getAddress(), player);
 		return player;
+	}
+
+	public LevelManager getLevelManager(){
+		return lvlManager;
 	}
 
 	public int getNextEntityID(){

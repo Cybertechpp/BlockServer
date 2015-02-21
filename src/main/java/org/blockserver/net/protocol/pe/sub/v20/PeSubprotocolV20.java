@@ -1,15 +1,13 @@
 package org.blockserver.net.protocol.pe.sub.v20;
 
 import org.blockserver.Server;
+import org.blockserver.net.internal.request.DisconnectRequest;
 import org.blockserver.net.internal.request.InternalRequest;
 import org.blockserver.net.internal.request.PingRequest;
-import org.blockserver.net.protocol.ProtocolSession;
-import org.blockserver.net.protocol.pe.PeProtocolSession;
 import org.blockserver.net.protocol.pe.sub.PeDataPacket;
 import org.blockserver.net.protocol.pe.sub.PeDataPacketParser;
 import org.blockserver.net.protocol.pe.sub.PeSubprotocol;
 import org.blockserver.net.protocol.pe.sub.gen.McpeDisconnectPacket;
-import org.blockserver.net.protocol.pe.sub.gen.PeSubprotocolGen;
 import org.blockserver.net.protocol.pe.sub.gen.McpeStartGamePacket;
 import org.blockserver.net.protocol.pe.sub.gen.ping.McpePingPacket;
 
@@ -21,9 +19,11 @@ public class PeSubprotocolV20 extends PeSubprotocol {
 		parser = new PeDataPacketParser(server);
 		parser.add(MC_START_GAME_PACKET, McpeStartGamePacket.class);
 		parser.add(MC_PLAY_PING, McpePingPacket.class);
+		parser.add(MC_DISCONNECT, McpeDisconnectPacket.class);
 		// TODO more
 	}
 
+	@Override
 	public InternalRequest toInternalRequest(PeDataPacket dp){
 		byte pid = dp.getPid();
 		server.getLogger().debug("Adapting into request: "+dp.getPid());
@@ -34,6 +34,13 @@ public class PeSubprotocolV20 extends PeSubprotocol {
 				pingRequest.pingId = pingPacket.pingID;
 
 				return pingRequest;
+
+			case MC_DISCONNECT:
+				McpeDisconnectPacket disconnectPacket = (McpeDisconnectPacket) dp;
+				DisconnectRequest disconnectRequest = new DisconnectRequest();
+				disconnectRequest.reason = "Disconnected by client.";
+
+				return disconnectRequest;
 			default:
 				//TODO
 				return null;
